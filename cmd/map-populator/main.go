@@ -57,8 +57,16 @@ func fillMap(ebpfMap *ebpf.Map) {
 
 func main() {
 	var unpinMapMode bool
+	var delay_ms int
+	var handle int
+	var ip string
+	var rate_bps int
 
 	flag.BoolVar(&unpinMapMode, "unpin-map", false, "Unpins the map and exits.")
+	flag.StringVar(&ip, "ip", "1.1.1.1", "Target IP to apply the filter for the egress")
+	flag.IntVar(&handle, "handle", 0, "TC's handle")
+	flag.IntVar(&rate_bps, "rate", 0, "Egress rate in BPS for the link.")
+	flag.IntVar(&delay_ms, "delay", 0, "Egress delay in ms for the link.")
 
 	flag.Parse()
 
@@ -88,19 +96,17 @@ func main() {
 	fmt.Printf("Loaded Map: %+v\n", ipHandleMap)
 
 	// fill the map
-	fillMap(ipHandleMap)
+	//fillMap(ipHandleMap)
 
 	// Add another entry to the map to test overhead
-	var ip uint32 = parseIpToLong("46.4.61.148") // IP 1.1.1.1
-	//ip_string := fmt.Sprintf("46.4.%d.%d", 61, 148)
-	var handle uint32 = 0x1a1e0003 // tc handle 1a1e:3
+	parsed_ip := parseIpToLong(ip)
 	var handleBpsMapValue handleBpsDelay
 
-	handleBpsMapValue.tcHandle = handle
-	handleBpsMapValue.throttleRateBps = 1000000
-	handleBpsMapValue.delayMs = 50
+	handleBpsMapValue.tcHandle = uint32(handle)
+	handleBpsMapValue.throttleRateBps = uint32(rate_bps)
+	handleBpsMapValue.delayMs = uint32(delay_ms)
 
-	err = ipHandleMap.Put(ip, handleBpsMapValue)
+	err = ipHandleMap.Put(parsed_ip, handleBpsMapValue)
 	if err != nil {
 		fmt.Println("err: putting ip and handle into map failed")
 		fmt.Println(err)
