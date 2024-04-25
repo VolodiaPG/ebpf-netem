@@ -47,12 +47,18 @@
               '';
             };
           };
+          goEnv = pkgs.mkGoEnv {pwd = ./.;};
         in {
           formatter = pkgs.alejandra;
           devShells.default = pkgs.mkShell {
-            packages = with pkgs; [
-              gomod2nix
-            ];
+            packages =
+              (with pkgs; [
+                gomod2nix
+                goEnv
+                gopls
+              ])
+              ++ pkgs.ebpf-netem.buildInputs
+              ++ pkgs.ebpf-netem.nativeBuildInputs;
           };
           packages = {
             inherit (pkgs) ebpf-netem;
