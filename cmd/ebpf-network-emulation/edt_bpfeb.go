@@ -34,9 +34,9 @@ func loadEdt() (*ebpf.CollectionSpec, error) {
 //
 // The following types are suitable as obj argument:
 //
-//     *edtObjects
-//     *edtPrograms
-//     *edtMaps
+//	*edtObjects
+//	*edtPrograms
+//	*edtMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
 func loadEdtObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
@@ -130,5 +130,6 @@ func _EdtClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
+//
 //go:embed edt_bpfeb.o
 var _EdtBytes []byte

@@ -34,9 +34,9 @@ func loadDelay() (*ebpf.CollectionSpec, error) {
 //
 // The following types are suitable as obj argument:
 //
-//     *delayObjects
-//     *delayPrograms
-//     *delayMaps
+//	*delayObjects
+//	*delayPrograms
+//	*delayMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
 func loadDelayObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
@@ -121,5 +121,6 @@ func _DelayClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
+//
 //go:embed delay_bpfeb.o
 var _DelayBytes []byte

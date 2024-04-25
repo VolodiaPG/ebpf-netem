@@ -34,9 +34,9 @@ func loadTc() (*ebpf.CollectionSpec, error) {
 //
 // The following types are suitable as obj argument:
 //
-//     *tcObjects
-//     *tcPrograms
-//     *tcMaps
+//	*tcObjects
+//	*tcPrograms
+//	*tcMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
 func loadTcObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
@@ -121,5 +121,6 @@ func _TcClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
+//
 //go:embed tc_bpfeb.o
 var _TcBytes []byte
