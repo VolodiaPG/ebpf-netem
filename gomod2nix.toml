@@ -1,0 +1,45 @@
+schema = 3
+
+[mod]
+  [mod."github.com/cilium/ebpf"]
+    version = "v0.9.0"
+    hash = "sha256-XVT41Nx7o5EK89LqBjdZ1ChMBxTIy7mpNFI+ZovAEq8="
+  [mod."github.com/florianl/go-tc"]
+    version = "v0.4.1"
+    hash = "sha256-eZ1R+TWgOBCLVcWETM+bX7dwMibxW2E6EZ5Tb8CrrXk="
+  [mod."github.com/google/go-cmp"]
+    version = "v0.5.7"
+    hash = "sha256-FcQOybCxm1vqo4jreISMdaGWGy5A1pi6nrZnDZ2/0ac="
+  [mod."github.com/josharian/native"]
+    version = "v1.0.0"
+    hash = "sha256-ub4WrKNlMAvgn+OPuJYeJJYLyjqeTGDHA97RTzUC6+Y="
+  [mod."github.com/mdlayher/netlink"]
+    version = "v1.6.0"
+    hash = "sha256-hFm39JacQH6ed6l/Xn10eP8pFVO0BK8a9phdgtj89f8="
+  [mod."github.com/mdlayher/socket"]
+    version = "v0.1.1"
+    hash = "sha256-g3GB7weGxxw8eJmD6VDY6os+zRJEZrmOLVscHGbDVXs="
+  [mod."github.com/pkg/errors"]
+    version = "v0.9.1"
+    hash = "sha256-mNfQtcrQmu3sNg/7IwiieKWOgFQOVVe2yXgKBpe/wZw="
+  [mod."github.com/schollz/progressbar"]
+    version = "v1.0.0"
+    hash = "sha256-CHeYo7VGjidzKSdMb6VJPWlE7iwIyqBLuPBByk9BEAc="
+  [mod."github.com/sirupsen/logrus"]
+    version = "v1.8.1"
+    hash = "sha256-vUIDlLXYBD74+JqdoSx+W3J6r5cOk63heo0ElsHizoM="
+  [mod."github.com/vishvananda/netlink"]
+    version = "v1.1.0"
+    hash = "sha256-EAGYHiYvt48BL9ml87fzUiIKlIFEU4SAMsP0Fy4YFO4="
+  [mod."github.com/vishvananda/netns"]
+    version = "v0.0.0-20191106174202-0a2b9b5464df"
+    hash = "sha256-vJ9iHtQjILniMAnruylKAm/9jbua2YNZ5CQT9u9ZP8w="
+  [mod."golang.org/x/net"]
+    version = "v0.0.0-20220127200216-cd36cc0744dd"
+    hash = "sha256-MJiGGZjsWS3Egd/9yuO2PDB8lMjuhuHT6RMCCtdrbb4="
+  [mod."golang.org/x/sync"]
+    version = "v0.0.0-20210220032951-036812b2e83c"
+    hash = "sha256-qyBoAsnVWZyQM7UkJ573EjijMHK0q5mVoY/o4a8Agr4="
+  [mod."golang.org/x/sys"]
+    version = "v0.0.0-20220715151400-c0bba94af5f8"
+    hash = "sha256-8LGu1Rwel+ZWaOXHjOxoQDthPPDpJxWD9SoXdCJQq04="

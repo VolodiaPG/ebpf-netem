@@ -269,3 +269,6 @@ go.work
 # End of https://www.toptal.com/developers/gitignore/api/go,c,goland,clion
 
 .DS_Store
+
+.direnv
+result
