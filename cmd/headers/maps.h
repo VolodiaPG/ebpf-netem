@@ -2,6 +2,7 @@ struct handle_bps_delay {
     __u32 tc_handle;
     __u32 throttle_rate_bps;
     __u32 delay_ms;
+    __u32 loss_percent;
 } HANDLE_BPS_DELAY;
 
 struct {

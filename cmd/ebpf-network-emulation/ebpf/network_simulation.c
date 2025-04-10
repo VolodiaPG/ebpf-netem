@@ -18,7 +18,7 @@
 #define NS_PER_SEC 1000000000
 #define ECN_HORIZON_NS 500000000
 #define NS_PER_MS 1000000
-
+#define MAX_PERCENTAGE 100
 
 /* flow_key => last_tstamp timestamp used */
 struct {
@@ -28,6 +28,13 @@ struct {
     __uint(max_entries, 65535);
 } flow_map SEC(".maps");
 
+/* Map to store packet counters for loss simulation */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, uint32_t);
+    __type(value, uint64_t);
+    __uint(max_entries, 65535);
+} packet_counter_map SEC(".maps");
 
 static inline int inject_delay(struct __sk_buff *skb, uint32_t *delay_ms) {
     uint64_t delay_ns;
@@ -36,17 +43,6 @@ static inline int inject_delay(struct __sk_buff *skb, uint32_t *delay_ms) {
     uint64_t ts = skb->tstamp;
     uint64_t new_ts = ((uint64_t)skb->tstamp) + delay_ns;
 
-    // debug msg, read with 
-    // sudo cat /sys/kernel/debug/tracing/trace_pipe
-    //const char fmt_ts[] = "skb Tstamp: %d\n";
-    //bpf_trace_printk(fmt_ts, sizeof(fmt_ts), ts);
-    //const char fmt_str[] = "Now Tstamp: %d\n";
-    //bpf_trace_printk(fmt_str, sizeof(fmt_str), now);
-    //const char fmt_str2[] = "Now + delay Tstamp: %d\n";
-    //bpf_trace_printk(fmt_str2, sizeof(fmt_str2), now + delay_ns);
-    //const char fmt_str3[] = "New Tstamp: %d\n";
-    //bpf_trace_printk(fmt_str3, sizeof(fmt_str3), new_ts);
-
     // sometimes skb-tstamp is reset to 0
     // https://patchwork.kernel.org/project/netdevbpf/patch/20220301053637.930759-1-kafai@fb.com/
     // check if skb->tstamp == 0
@@ -54,8 +50,45 @@ static inline int inject_delay(struct __sk_buff *skb, uint32_t *delay_ms) {
         skb->tstamp = now + delay_ns;
         return TC_ACT_OK;
     }
-    // otherwise add additional delay to packets 
+    // otherwise add additional delay to packets
     skb->tstamp = new_ts;
+
+    return TC_ACT_OK;
+}
+
+/* Simulate packet loss based on loss percentage */
+static inline int simulate_packet_loss(struct __sk_buff *skb, __u32 ip_address, uint32_t *loss_percent) {
+    // If loss percentage is 0, don't drop any packets
+    if (*loss_percent == 0) {
+        return TC_ACT_OK;
+    }
+
+    // If loss percentage is 100, drop all packets
+    if (*loss_percent >= MAX_PERCENTAGE) {
+        return TC_ACT_SHOT;
+    }
+
+    // Get the packet counter for this IP
+    uint64_t *counter = bpf_map_lookup_elem(&packet_counter_map, &ip_address);
+    uint64_t pkt_count = 0;
+
+    // If counter exists, increment it, otherwise create it
+    if (counter) {
+        pkt_count = *counter + 1;
+    }
+
+    // Update the counter
+    if (bpf_map_update_elem(&packet_counter_map, &ip_address, &pkt_count, BPF_ANY)) {
+        // If update fails, default to not dropping
+        return TC_ACT_OK;
+    }
+
+    // Calculate if we should drop this packet
+    // We use modulo to distribute drops evenly
+    // For example, if loss_percent is 20, we drop every 5th packet (100/20 = 5)
+    if (*loss_percent > 0 && (pkt_count % (MAX_PERCENTAGE / *loss_percent)) == 0) {
+        return TC_ACT_SHOT;
+    }
 
     return TC_ACT_OK;
 }
@@ -91,6 +124,7 @@ int set_delay(struct __sk_buff *skb)
         if (ip_type == IPPROTO_ICMP || ip_type == IPPROTO_TCP || ip_type == IPPROTO_UDP) {
             __u32 ip_address = iphdr->daddr; // destination IP, to be used as map lookup key
             __u32 *delay_ms;
+            __u32 *loss_percent;
             struct handle_bps_delay *val_struct;
             // Map lookup
             val_struct = bpf_map_lookup_elem(&IP_HANDLE_BPS_DELAY, &ip_address);
@@ -101,12 +135,20 @@ int set_delay(struct __sk_buff *skb)
             }
 
             delay_ms = &val_struct->delay_ms;
-            // Safety check, go on if no handle could be retrieved
-            if (!delay_ms) {
-                return TC_ACT_OK;
+            loss_percent = &val_struct->loss_percent;
+
+            // First check if we should drop this packet due to simulated loss
+            if (loss_percent) {
+                int loss_result = simulate_packet_loss(skb, ip_address, loss_percent);
+                if (loss_result != TC_ACT_OK) {
+                    return loss_result;
+                }
             }
 
-            return inject_delay(skb, delay_ms);
+            // If not dropped, apply delay if configured
+            if (delay_ms) {
+                return inject_delay(skb, delay_ms);
+            }
         }
     }
     return TC_ACT_OK;
@@ -145,8 +187,6 @@ static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_
 
     // if the delayed timestamp is already in the past, send the packet
     if (next_tstamp <= tstamp) {
-        //const char fmt_past[] = "We're living in the past -> next_tstamp: %d, tstamp -> %d\n";
-        //bpf_trace_printk(fmt_past, sizeof(fmt_past), next_tstamp, tstamp);
         if (bpf_map_update_elem(&flow_map, &key, &tstamp, BPF_ANY))
             return TC_ACT_SHOT;
         //set additional delay for packet
@@ -166,15 +206,12 @@ static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_
     if (bpf_map_update_elem(&flow_map, &key, &next_tstamp, BPF_EXIST))
         return TC_ACT_SHOT;
 
-
-    //const char fmt_throt[] = "Throttled:  -> skb_tstamp: %d, next_tstamp: %d\n";
-    //bpf_trace_printk(fmt_throt, sizeof(fmt_throt), skb->tstamp, next_tstamp);
     // set delayed timestamp for packet
     skb->tstamp = next_tstamp;
 
     //set additional delay for packet
     bpf_tail_call(skb, &progs, 0);
-    
+
     return TC_ACT_OK;
 }
 
@@ -205,7 +242,9 @@ int tc_main(struct __sk_buff *skb)
         if (ip_type == IPPROTO_ICMP || ip_type == IPPROTO_TCP || ip_type == IPPROTO_UDP) {
             __u32 ip_address = iphdr->daddr; // destination IP, to be used as map lookup key
             __u32 *throttle_rate_bps;
+            __u32 *loss_percent;
             struct handle_bps_delay *val_struct;
+
             // Map lookup
             val_struct = bpf_map_lookup_elem(&IP_HANDLE_BPS_DELAY, &ip_address);
 
@@ -213,12 +252,22 @@ int tc_main(struct __sk_buff *skb)
             if (!val_struct) {
                 return TC_ACT_OK;
             }
+
             throttle_rate_bps = &val_struct->throttle_rate_bps;
-            // Safety check, go on if no handle could be retrieved
-            if (!throttle_rate_bps)  {
-                return TC_ACT_OK;
+            loss_percent = &val_struct->loss_percent;
+
+            // First check if we should drop this packet due to simulated loss
+            if (loss_percent) {
+                int loss_result = simulate_packet_loss(skb, ip_address, loss_percent);
+                if (loss_result != TC_ACT_OK) {
+                    return loss_result;
+                }
             }
-            return throttle_flow(skb, ip_address, throttle_rate_bps);
+
+            // If not dropped and throttling is configured, apply throttling
+            if (throttle_rate_bps && *throttle_rate_bps > 0) {
+                return throttle_flow(skb, ip_address, throttle_rate_bps);
+            }
         }
     }
     return TC_ACT_OK;
