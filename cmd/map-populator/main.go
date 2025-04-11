@@ -18,6 +18,7 @@ type handleBpsDelay struct {
 	tcHandle        uint32
 	throttleRateBps uint32
 	delayMs         uint32
+	loss            uint32
 }
 
 // parseIp parses IP address from string into uint32 (with reversed order)
@@ -42,6 +43,7 @@ func fillMap(ebpfMap *ebpf.Map) {
 		handle_bps_delay.tcHandle = uint32(1)
 		handle_bps_delay.throttleRateBps = 5000000
 		handle_bps_delay.delayMs = uint32(i + 10)
+		handle_bps_delay.loss = uint32(0)
 
 		err := ebpfMap.Put(parseIpToLong(ip_string), handle_bps_delay)
 		if err != nil {
@@ -61,12 +63,14 @@ func main() {
 	var handle int
 	var ip string
 	var rate_bps int
+	var loss int
 
 	flag.BoolVar(&unpinMapMode, "unpin-map", false, "Unpins the map and exits.")
 	flag.StringVar(&ip, "ip", "1.1.1.1", "Target IP to apply the filter for the egress")
 	flag.IntVar(&handle, "handle", 0, "TC's handle")
 	flag.IntVar(&rate_bps, "rate", 0, "Egress rate in BPS for the link.")
 	flag.IntVar(&delay_ms, "delay", 0, "Egress delay in ms for the link.")
+	flag.IntVar(&loss, "loss", 0, "loss percent, e.g. 1 for 1 percent")
 
 	flag.Parse()
 
@@ -105,6 +109,7 @@ func main() {
 	handleBpsMapValue.tcHandle = uint32(handle)
 	handleBpsMapValue.throttleRateBps = uint32(rate_bps)
 	handleBpsMapValue.delayMs = uint32(delay_ms)
+	handleBpsMapValue.loss = uint32(loss)
 
 	err = ipHandleMap.Put(parsed_ip, handleBpsMapValue)
 	if err != nil {
